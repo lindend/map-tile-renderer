@@ -26,7 +26,12 @@ defmodule MapTileRenderer.Mixfile do
   #   {:mydep, git: "https://github.com/elixir-lang/mydep.git", tag: "0.1.0"}
   #
   # Type "mix help deps" for more examples and options
-  defp deps do
-    [{:geocalc, "~> 0.5"},{:osm_parse, git: "git://github.com/lindend/elixir-osmpbf.git"}]
+  defp deps do 
+    [
+      {:geocalc, "~> 0.5"},
+      {:osm_parse, git: "git://github.com/lindend/elixir-osmpbf.git"}, 
+      {:exprotobuf, "~> 1.0.2"},
+      {:exprof, "~> 0.2.0"}
+    ]
   end
 end

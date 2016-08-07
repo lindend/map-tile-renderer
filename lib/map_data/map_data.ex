@@ -2,11 +2,11 @@ defmodule MapTileRenderer.MapData do
     require Logger
 
     defmodule Area do
-        defstruct id: 0, type: :land, tags: %{}, vertices: []
+        defstruct id: 0, type: :land, tags: %{}, vertices: [], bbox: {{0.0, 0.0}, {0.0, 0.0}}
     end
 
     defmodule Line do
-        defstruct id: 0, type: :road, tags: %{}, vertices: []
+        defstruct id: 0, type: :road, tags: %{}, vertices: [], bbox: {{0.0, 0.0}, {0.0, 0.0}}
     end
 
     defmodule Point do
@@ -29,7 +29,13 @@ defmodule MapTileRenderer.MapData do
                 _ -> read_element(osm_element, elements_table)
             end
         end)
-        |> Stream.filter(fn element -> element != nil end)
+        |> Enum.filter(fn element -> 
+            case element do
+                nil -> false
+                %{type: :empty} -> false
+                _ -> true
+            end
+        end)
     end
 
     defp read_element(%OsmParse.OsmNode{id: id, tags: tags, lat: lat, lon: lon}, _elements_table) do
@@ -37,47 +43,68 @@ defmodule MapTileRenderer.MapData do
     end
 
     defp read_element(%OsmParse.OsmWay{id: id, node_ids: node_ids, tags: tags} = way, elements_table) do
-        {way_nodes, first_last} = lookup_elements(node_ids, elements_table, true)
-        way_vertices = Enum.map(way_nodes, fn %OsmParse.OsmNode{lat: lat, lon: lon} -> {lon, lat} end)
-
+        {way_nodes, first_last} = lookup_elements(node_ids, elements_table)
+        {way_vertices, bbox} = nodes_to_vertices way_nodes
         case way_type(way, first_last) do
-            :area -> %Area{id: id, tags: tags, vertices: way_vertices}
-            :line -> %Line{id: id, tags: tags, vertices: way_vertices}
+            {:area, type} -> %Area{id: id, type: type, tags: tags, vertices: way_vertices, bbox: bbox}
+            {:line, type} -> %Line{id: id, type: type, tags: tags, vertices: way_vertices, bbox: bbox}
         end
     end
 
     defp read_element(%OsmParse.OsmRelation{id: id, members: members, type: "multipolygon", tags: tags}, elements_table) do
         way_ids = Enum.map(members, fn %OsmParse.OsmMember{type: "way", id: id} -> id end)
-        {ways, _} = lookup_elements(way_ids, elements_table, false)
+        {ways, _} = lookup_elements(way_ids, elements_table)
 
-        %MultiArea{id: id, tags: tags, areas: Enum.map(ways, &read_element(&1, elements_table))}
+        default_type = area_type(tags)
+
+        areas = Enum.map(ways, &read_element(&1, elements_table))
+        |> Enum.map(fn area ->
+            case area do
+                %{type: :empty} -> %{area | type: default_type}
+                _ -> area
+            end
+        end)
+        %MultiArea{id: id, tags: tags, areas: areas}
     end
 
     defp read_element(_, _) do
         nil
     end
 
-    defp way_type(%OsmParse.OsmWay{tags: %{"area" => "yes"}}, _), do: :area
-    defp way_type(way, {first_node, last_node}) when first_node == last_node do
+    defp nodes_to_vertices(way_nodes) do
+        %{lon: min_x = max_x, lat: min_y = max_y} = hd way_nodes
+        Enum.map_reduce(way_nodes, {{min_x, min_y}, {max_x, max_y}},
+            fn %OsmParse.OsmNode{lat: lat, lon: lon}, {{min_x, min_y}, {max_x, max_y}} -> 
+                {{lon, lat}, {{min(min_x, lon), min(min_y, lat)}, {max(max_x, lon), max(max_y, lat)}}}
+            end)
+    end
+
+    defp way_type(%OsmParse.OsmWay{tags: %{"area" => "yes"} = tags}, _), do: {:area, area_type(tags)}
+    defp way_type(%{tags: tags} = way, {first_node, last_node}) when first_node == last_node do
         case way do
-            %OsmParse.OsmWay{tags: %{"highway" => _}} -> :line
-            %OsmParse.OsmWay{tags: %{"barrier" => _}} -> :line
-            _ -> :area
+            %OsmParse.OsmWay{tags: %{"highway" => _}} -> {:line, line_type(tags)}
+            %OsmParse.OsmWay{tags: %{"barrier" => _}} -> {:line, line_type(tags)}
+            _ -> {:area, area_type(tags)}
         end
     end
-    defp way_type(_, _), do: :line
+    defp way_type(%{tags: tags}, _), do: {:line, line_type(tags)}
 
-    defp lookup_elements(element_ids, elements_table, raise_not_found) do
+    defp line_type(tags) do
+        MapTileRenderer.MapData.LineType.type(tags)
+    end
+
+    defp area_type(tags) do
+        MapTileRenderer.MapData.AreaType.type(tags)
+    end
+
+    defp lookup_elements(element_ids, elements_table) do
         {elements, last_id} = Enum.map_reduce(element_ids, {[], 0}, fn(element_id, _) ->
             case :ets.lookup(elements_table, element_id) do
                 [{^element_id, element}] ->
                     {element, element_id}
                 any ->
-                    Logger.error "unable to find element #{element_id} (found #{inspect any})"
-                    cond do
-                        raise_not_found -> raise "unable to find element #{element_id} (found #{inspect any})"
-                        true -> nil
-                    end
+                    #Logger.error "unable to find element #{element_id} (found #{inspect any})"
+                    {nil, element_id}
             end
         end)
         {Enum.filter(elements, fn element -> element != nil end), {hd(element_ids), last_id}}

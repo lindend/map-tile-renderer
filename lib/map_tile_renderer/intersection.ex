@@ -11,6 +11,61 @@ defmodule MapTileRenderer.Intersection do
     end
 
     @doc """
+    Returns true if the two boxes overlap.
+
+    ##Examples:
+
+        iex> MapTileRenderer.Intersection.box_vs_box?({{0.0, 0.0}, {1.0, 1.0}}, {{0.5, 0.5}, {1.5, 1.5}})
+        true
+
+        iex> MapTileRenderer.Intersection.box_vs_box?({{0.0, 0.0}, {1.0, 1.0}}, {{1.5, 1.5}, {2.5, 2.5}})
+        false
+    """
+    def box_vs_box?(box0, box1) do
+        {{b0_minx, b0_miny}, {b0_maxx, b0_maxy}} = box0
+        {{b1_minx, b1_miny}, {b1_maxx, b1_maxy}} = box1
+        
+        lines_overlap?({b0_minx, b0_maxx}, {b1_minx, b1_maxx}) && lines_overlap?({b0_miny, b0_maxy}, {b1_miny, b1_maxy})
+    end
+
+    def box_add_point(box, {px, py}) do
+        {{b_minx, b_miny}, {b_maxx, b_maxy}} = box
+        {{min(b_minx, px), min(b_miny, py)}, {max(b_maxx, px), max(b_maxy, py)}}
+    end
+
+    @doc """
+    Returns true if the line segments overlap.
+
+    ##Examples:
+
+        iex> MapTileRenderer.Intersection.lines_overlap?({0.0, 1.0}, {0.5, 1.5})
+        true
+
+        iex> MapTileRenderer.Intersection.lines_overlap?({0.0, 1.0}, {0.5, 0.6})
+        true
+
+        iex> MapTileRenderer.Intersection.lines_overlap?({0.0, 1.0}, {-0.5, 1.5})
+        true
+
+        iex> MapTileRenderer.Intersection.lines_overlap?({0.0, 1.0}, {-0.5, 0.5})
+        true
+
+        iex> MapTileRenderer.Intersection.lines_overlap?({0.0, 1.0}, {1.5, 2.5})
+        false
+
+        iex> MapTileRenderer.Intersection.lines_overlap?({3.0, 4.0}, {0.5, 1.5})
+        false
+    """
+    def lines_overlap?({p0_min, p0_max}, {p1_min, p1_max}) do
+        cond do
+            p0_min <= p1_min && p0_max >= p1_min -> true
+            p0_min <= p1_max && p0_max >= p1_max -> true
+            p0_min >= p1_min && p0_max <= p1_max -> true
+            true -> false 
+        end
+    end
+
+    @doc """
     Gives all intersections between the scanline (height) and the polygon formed by the vertices.
 
     ##Examples:

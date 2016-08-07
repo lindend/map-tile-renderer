@@ -1,4 +1,6 @@
-%{"exprotobuf": {:hex, :exprotobuf, "1.0.2", "71056a3547eb37e53d64d892d4bc7a5d8d6355f48070e646357c6ed64571bfea", [:mix], [{:gpb, "~> 3.23.2", [hex: :gpb, optional: false]}]},
+%{"exprintf": {:hex, :exprintf, "0.1.6", "b5b0a38bf78a357dbc61cdf7364fea004af6fdf5214be44021eb2ea7edf61f6e", [:mix], []},
+  "exprof": {:hex, :exprof, "0.2.0", "b03f50d0d33e2f18c8e047d9188ba765dc32daba0b553ed717a98a78561d5eaf", [:mix], [{:exprintf, "~> 0.1", [hex: :exprintf, optional: false]}]},
+  "exprotobuf": {:hex, :exprotobuf, "1.0.2", "71056a3547eb37e53d64d892d4bc7a5d8d6355f48070e646357c6ed64571bfea", [:mix], [{:gpb, "~> 3.23.2", [hex: :gpb, optional: false]}]},
   "geocalc": {:hex, :geocalc, "0.5.0", "c8331d34c6d4ac9a73ee33e0fefe92b86e8614cc368b4372ce6bf54a9602d1f6", [:mix], []},
   "gpb": {:hex, :gpb, "3.23.2", "dfabca052f8f4a8c6f98d43c6653e0037416537a9e5a747019f4ef53713982e3", [:rebar, :make], []},
   "osm_parse": {:git, "git://github.com/lindend/elixir-osmpbf.git", "c8cd0368a96eb6ca6a8572a6689c68e44c9f42a8", []}}
