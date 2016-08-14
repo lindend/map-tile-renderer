@@ -1,7 +1,6 @@
 defmodule MapTileRenderer.TileCompresser do
     def compress(chunk, width, height, resolution) do
         layers = split_layers(chunk)
-        |> Enum.map(&delta_encode/1)
         |> Enum.map(&to_protobuf_layer/1)
 
         %MapTileRenderer.FileFormat.TileChunk{width: width, height: height, resolution: resolution, tile_layers: layers}
@@ -38,11 +37,11 @@ defmodule MapTileRenderer.TileCompresser do
         encoded
     end
 
+    defp run_length_encode(layer) do
+        Enum.chunk_by(layer, &(&1)) |> Enum.flat_map(fn tiles -> [length(tiles), hd tiles] end)
+    end
+
     defp to_protobuf_layer(layer) do
-        first = hd layer
-        cond do
-            Enum.all?(layer, fn t -> t == first end) -> %MapTileRenderer.FileFormat.TileLayer{single_tile: first}
-            true -> %MapTileRenderer.FileFormat.TileLayer{tiles: layer}
-        end
+        %MapTileRenderer.FileFormat.TileLayer{tiles: run_length_encode(layer)}
     end
 end
